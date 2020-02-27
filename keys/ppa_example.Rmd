@@ -95,7 +95,7 @@ plot(grouse_full)
 
 ### Quadrat test:
 ```{r}
-grouse_qt <- quadrat.test(grouse_full, nx = 5, ny = 10)
+grouse_qt <- quadrat.test(grouse_full, nx = 5, ny = 10) # 5(nx) x windows, 10(ny) y windows
 
 # Look at it: 
 plot(grouse_full)
@@ -112,7 +112,7 @@ is computed."
 
 ### Density
 ```{r}
-grouse_density <- density(grouse_full, sigma = 0.02)
+grouse_density <- density(grouse_full, sigma = 0.05) # density depends on sigma (band width)
 plot(grouse_density)
 
 ```
