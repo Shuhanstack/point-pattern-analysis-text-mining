@@ -1,0 +1,23 @@
+---
+title: "text mining"
+author: "Shuhan Song"
+date: "2/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+# general packages
+library(tidyverse)
+library(here)
+
+# text mining
+library(pdftools)
+library(tidytext)
+library(textdata)
+library(ggwordcloud)
+```
+
