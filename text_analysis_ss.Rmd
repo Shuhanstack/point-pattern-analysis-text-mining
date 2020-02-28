@@ -21,3 +21,195 @@ library(textdata)
 library(ggwordcloud)
 ```
 
+### Read in the report
+
+```{r}
+ipcc_path <- here("data", "ipcc_gw_15.pdf")
+ipcc_text <- pdf_text(ipcc_path) # every single page get its own line
+ipcc_p9 <- ipcc_text[9]
+ipcc_p9 # \n: linebreak
+```
+
+### Get into df shape + wrangling 
+
+- split up pages into separate lines using "\n" using `stringr::str_split()`
+- unnest into refulat columns using `tidyr::unnest()`, each line a single row
+- remove leading/trailing white space using `stringr::str_trim()`
+
+```{r}
+ipcc_df <- data.frame(ipcc_text) %>% 
+  mutate(text_full = str_split(ipcc_text, pattern = "\\n")) %>% 
+  unnest(text_full) %>% 
+  mutate(text_full = str_trim(text_full)) # get rid of white space
+```
+
+### get tokens using `unnest_tokens()`
+
+```{r}
+ipcc_tokens <- ipcc_df %>% 
+  unnest_tokens(word, text_full)
+```
+
+### Count all the words
+
+```{r}
+ipcc_wc <- ipcc_tokens %>% 
+  count(word) %>% 
+  arrange(-n)
+```
+
+### remove the stop words
+
+```{r, eval=FALSE}
+View(stop_words) # can customize 
+```
+
+```{r}
+ipcc_stop <- ipcc_tokens %>% 
+  anti_join(stop_words) %>% 
+  dplyr::select(-ipcc_text)
+```
+
+### remove numeric pieces 
+
+```{r}
+ipcc_no_num <- ipcc_stop %>% 
+  filter(is.na(as.numeric(word))) # word+combination will return NA in as.numeric, is.na will return TRUE for word and be filtered out
+```
+
+### do visualization
+
+word cloud:
+
+```{r}
+ipcc_top100 <- ipcc_no_num %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(100)
+
+ipcc_cloud <- ggplot(ipcc_top100, 
+                     aes(label = word)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+
+ipcc_cloud
+
+ipcc_cloud_size <- ggplot(ipcc_top100, 
+                     aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), 
+                           shape = "diamond") +
+  scale_size_area(max_size = 8) +
+  scale_color_gradientn(colors = c("darkgreen", "blue", "purple")) +
+  theme_minimal()
+
+ipcc_cloud_size
+```
+
+### sentiment analysis
+
+```{r}
+afinn_positive <- get_sentiments(lexicon = "afinn") %>% 
+  filter(value %in% c(4, 5))
+```
+
+```{r, eval=FALSE}
+get_sentiments(lexicon="bing")
+get_sentiments(lexicon="nrc")
+```
+
+Bind together words in `ipcc_stop` with `afinn_positive`
+
+```{r}
+ipcc_affin <- ipcc_stop %>% 
+  inner_join(get_sentiments(lexicon = "afinn")) # only keep observations that have a match, no match will be dropped
+
+```
+
+Find counts of value rankings
+
+```{r}
+ipcc_afinn_hist <- ipcc_affin %>% 
+  count(value)
+
+ipcc_afinn_hist
+
+ggplot(ipcc_afinn_hist,
+       aes(x = value, y = n)) +
+  geom_col() +
+  theme_minimal()
+```
+
+
+```{r}
+ipcc_afinn2 <- ipcc_affin %>% 
+  filter(value == 2)
+
+ipcc_summary <-  ipcc_affin %>% 
+  summarize(
+    mean_score = mean(value),
+    median_score = median(value)
+  )
+```
+
+
+### sentiments by NRC
+
+```{r}
+ipcc_nrc <- ipcc_stop %>% 
+  inner_join(get_sentiments(lexicon = "nrc"))
+
+ipcc_exclude <- ipcc_stop %>% 
+  anti_join(get_sentiments(lexicon = "nrc"))
+```
+
+
+```{r}
+ipcc_nrc_n <- ipcc_nrc %>% 
+  count(sentiment, sort = TRUE) %>% # sort from highest to lowest
+  mutate(sentiment = fct_reorder(sentiment, -n))
+
+ggplot(data = ipcc_nrc_n) +
+  geom_col(aes(x = sentiment, y = n)) +
+  theme_minimal() +
+  labs(x = " ")
+```
+
+For each sentiment bin, what are the top 5 most frequent words associated with that bin?
+
+```{r}
+ipcc_nrc_n5 <- ipcc_nrc %>% 
+  count(word, sentiment, sort = TRUE) %>% 
+  group_by(sentiment) %>% 
+  top_n(5) %>% 
+  ungroup()
+
+ipcc_nrc_gg <- ggplot(ipcc_nrc_n5,
+                      aes(x = reorder(word, n), 
+                          y = n,
+                      fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, ncol = 2, scales = "free")
+
+ipcc_nrc_gg
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
